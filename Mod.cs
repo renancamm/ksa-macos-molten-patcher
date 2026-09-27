@@ -2,32 +2,23 @@ using StarMap.API;
 
 namespace MacOSMoltenPatcher
 {
-    // Before KSA starts, when running in a Sikarugir wrapper on macOS, this mod applies the
-    // patches in its patches/ folder, in file name order. Each one is a text file: a title and a
-    // message saying why it's needed, a "---" line, then what it changes. There are two kinds:
-    //   - a replacement swaps a whole file for one from this mod's files/ folder, for example
-    //     the wrapper's libMoltenVK.dylib;
-    //   - a text patch (normal diff) edits one game file, for example a shader.
-    // Each patch changes one file, checks whether it's already done, and keeps the original as
-    // <file>.orig. Two patches must not change the same file. On Windows the mod does nothing.
+    // Before KSA starts, in a Sikarugir wrapper only, applies patches/*.patch in name order.
+    // Each patch changes one file (a replacement or a diff) and keeps the original as <file>.orig.
     [StarMapMod]
     public sealed class Mod
     {
         [StarMapBeforeMain]
         public void OnBeforeMain()
         {
-            // Under Wine, WINEPREFIX is the wrapper's prefix, for example
-            // /Users/me/Applications/Sikarugir/KSA.app/Contents/SharedSupport/prefix
-            // On Windows it doesn't exist, and the mod does nothing.
+            // e.g. /Users/me/Applications/Sikarugir/KSA.app/Contents/SharedSupport/prefix; unset on Windows.
             string? prefix = Environment.GetEnvironmentVariable("WINEPREFIX");
             int app = prefix?.IndexOf(".app/Contents/", StringComparison.Ordinal) ?? -1;
             if (app < 0) return;
 
-            // Wine's Z: drive is the Mac's root folder.
+            // Z: is the Mac's root folder.
             string wrapper = "Z:" + prefix![..(app + ".app/Contents".Length)];
 
-            // KSA loads MoltenVK and compiles its shaders after this, so everything works in the
-            // same launch. Every error is printed and ignored: the game must always start.
+            // Errors are logged and ignored: the game must always start.
             string patches = Path.Combine(ModFolder, "patches");
             if (!Directory.Exists(patches)) return;
             foreach (string patch in Directory.GetFiles(patches, "*.patch").Order())
@@ -49,12 +40,8 @@ namespace MacOSMoltenPatcher
                 TextPatch(name, lines);
         }
 
-        // A replacement is two lines:
-        //   replace wrapper:Frameworks/libMoltenVK.dylib
-        //   sha256  <hash of the new file>
-        // The target is relative to the game folder, or to the wrapper's .app/Contents with
-        // "wrapper:". The new file is at the same path in files/wrapper/... or files/game/...,
-        // and is used only if it has exactly that hash.
+        // "replace [wrapper:]<path>" + "sha256 <hash>". The new file is files/wrapper/<path> or
+        // files/game/<path>, used only if its hash matches.
         static void Replace(string name, string[] lines, string wrapper)
         {
             string target = lines[0]["replace ".Length..].Trim();
@@ -69,25 +56,21 @@ namespace MacOSMoltenPatcher
             byte[] data = File.ReadAllBytes(source);
             if (Sha256(data) != sha256) { Log($"Skipped {name}: {source} doesn't match the patch's sha256"); return; }
 
-            // Only the first time: later the target is an older version of our file.
+            // Only the first time, to keep the wrapper's own file.
             if (!File.Exists(file + ".orig")) File.Copy(file, file + ".orig");
             Write(file, data);
             Log($"Applied {name} to {file}");
         }
 
-        // A text patch is a normal diff of one file in the game folder. Hunks are found by their
-        // text, not by line numbers. The patch is already done if every hunk's new lines are in
-        // the file, and is applied only if every hunk's old lines are in the file exactly once.
-        // Otherwise a game update changed the file, and the patch is left out.
+        // A diff of one game file. Hunks are matched by text, not line numbers: done if all new
+        // lines are present, applied only if all old lines occur exactly once, else skipped.
         static void TextPatch(string name, string[] lines)
         {
-            // "+++ b/Content/Core/Shaders/Common/TextureSet.glsl" (maybe with a date after a tab)
+            // "+++ b/<path>", maybe followed by a tab and a date
             string file = lines.First(l => l.StartsWith("+++ "))[4..].Split('\t')[0];
             if (file.StartsWith("b/")) file = file[2..];
 
-            // Each hunk starts with "@@ -8,14 +8,16 @@". In its lines, " " is in both the old and
-            // the new text, "-" only in the old, "+" only in the new. The \n at both ends makes
-            // them match whole lines.
+            // Old text = " " and "-" lines, new text = " " and "+" lines; \n at both ends matches whole lines.
             var hunks = new List<(string Old, string New)>();
             foreach (string hunk in string.Join("\n", lines).TrimEnd('\n').Split("\n@@ ").Skip(1))
             {
@@ -105,7 +88,7 @@ namespace MacOSMoltenPatcher
 
             if (!File.Exists(file)) { Log($"Skipped {name}: {file} not found"); return; }
 
-            // Work with \n line endings, and write the file back with the ones it had.
+            // Work with \n, write back with the file's own line endings.
             string content = File.ReadAllText(file);
             bool crlf = content.Contains("\r\n");
             string patched = "\n" + content.Replace("\r\n", "\n") + "\n";
@@ -119,13 +102,13 @@ namespace MacOSMoltenPatcher
             }
             patched = patched[1..^1];
 
-            // The file doesn't have the patch yet, so it's the current game version's original.
+            // Not patched yet, so this is the current game version's original.
             File.Copy(file, file + ".orig", overwrite: true);
             Write(file, System.Text.Encoding.UTF8.GetBytes(crlf ? patched.Replace("\n", "\r\n") : patched));
             Log($"Applied {name} to {file}");
         }
 
-        // Written to <file>.new first, then swapped in one step, so a half-written file is never used.
+        // Via <file>.new and a rename, so a half-written file is never used.
         static void Write(string file, byte[] data)
         {
             File.WriteAllBytes(file + ".new", data);
