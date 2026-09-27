@@ -1,0 +1,15 @@
+Use the KSA title card as the wrapper's app icon
+
+Sikarugir wrappers show a generic icon. This one is the bottom square of KSA's
+title card (the kitten astronaut), at 1024x1024. Finder and the Dock may keep
+showing the old icon until they refresh their icon cache.
+---
+target wrapper:Resources/Configure.icns
+sha256 4a145e2b07b4900f5f7c464d7d5075d9bd4b5d2aac6ee7c4d77b9335bab37e95
+$ curl -fsSLo card.jpg https://ahwoo.com/ksa/title-card.jpg
+$ # The card is 900x1350: keep the bottom 898x898 (sips skips the crop if an offset is 0).
+$ sips -s format png -c 898 898 --cropOffset 452 1 card.jpg --out square.png
+$ mkdir icon.iconset
+$ sips -z 1024 1024 square.png --out icon.iconset/icon_512x512@2x.png
+$ iconutil -c icns icon.iconset -o "$OUT"
+$ printf '%s\n' "The app icon (files/wrapper/Resources/Configure.icns) is made from the Kitten Space Agency" "title card, https://ahwoo.com/ksa/title-card.jpg. Copyright (c) RocketWerkz, all rights" "reserved. It is not covered by this mod's MIT license." > "$LICENSES/KSA-title-card.txt"

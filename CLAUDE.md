@@ -43,6 +43,9 @@ wrapper, and a shader fix in the game folder.
 - **TextureSet.glsl**: shadow macros sample `globalTextures[]` / `globalTextureArrays[]`, so
   SPIRV-Cross declares them `depth2d` (1 channel). Fix adds `globalShadows[]` / `globalShadowsArray[]`
   at the same set/binding. All shadow sampling goes through those macros. Remove once KSA fixes it.
+- **App icon**: the wrapper's icon is `Resources/Configure.icns` (Info.plist `CFBundleIconFile`);
+  `0003` replaces it with the bottom square of KSA's title card. `sips --cropOffset` silently skips
+  the crop if an offset is 0, and `-z` runs before `-c` in the same call.
 
 ## Runtime facts
 
