@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MacOSMoltenPatcher</AssemblyName>
+  </PropertyGroup>
+
+  <!-- The mod folder needs: MacOSMoltenPatcher.dll, mod.toml, patches/ and files/ (the replacement
+       files, at their target paths: files/wrapper/... or files/game/...) -->
+  <ItemGroup>
+    <None Update="mod.toml" CopyToOutputDirectory="Always" />
+    <None Update="patches/*.patch" CopyToOutputDirectory="Always" />
+    <None Update="files/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

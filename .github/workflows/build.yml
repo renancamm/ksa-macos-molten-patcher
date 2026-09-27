@@ -1,0 +1,122 @@
+# Builds MoltenVK (with a newer SPIRV-Cross) and the mod, and packages them as a zip.
+#
+# Runs only when started by hand: Actions tab -> Build -> Run workflow.
+# The zip is attached to the run. Fill in "Release tag" to also publish a GitHub release.
+
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      moltenvk_ref:
+        description: "MoltenVK branch, tag or commit"
+        default: "main"
+      spirv_cross_ref:
+        description: "SPIRV-Cross commit (empty = latest)"
+        default: ""
+      release_tag:
+        description: "Release tag, e.g. v1.0.0 (empty = no release)"
+        default: ""
+
+permissions:
+  contents: write   # needed to create releases
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build MoltenVK outside the repo, so the mod build ignores it
+      - name: Set paths
+        run: echo "MVK=$RUNNER_TEMP/MoltenVK" >> "$GITHUB_ENV"
+
+      # MoltenVK's own CI uses Python 3.11 for fetchDependencies
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Get MoltenVK
+        run: |
+          git clone https://github.com/KhronosGroup/MoltenVK.git "$MVK"
+          git -C "$MVK" checkout "${{ inputs.moltenvk_ref || 'main' }}"
+
+      - name: Use a newer SPIRV-Cross
+        run: |
+          REV="${{ inputs.spirv_cross_ref }}"
+          [ -n "$REV" ] || REV=$(git ls-remote https://github.com/KhronosGroup/SPIRV-Cross.git HEAD | cut -f1)
+          echo "$REV" > "$MVK/ExternalRevisions/SPIRV-Cross_repo_revision"
+
+      - name: Fetch dependencies
+        working-directory: ${{ env.MVK }}
+        run: ./fetchDependencies --macos
+
+      - name: Check the descriptor set limit (KSA needs 10)
+        run: |
+          LIMIT=$(grep -Eo 'kMaxArgumentBuffers = [0-9]+' "$MVK/External/SPIRV-Cross/spirv_msl.hpp" | grep -Eo '[0-9]+$')
+          echo "Descriptor set limit: $LIMIT"
+          [ "$LIMIT" -ge 16 ]
+
+      - name: Build MoltenVK
+        working-directory: ${{ env.MVK }}
+        run: make macos
+
+      - name: Build the mod
+        run: |
+          DYLIB="$MVK/Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib"
+          lipo -archs "$DYLIB" | grep -q x86_64   # Wine runs under Rosetta
+          F=files/wrapper/Frameworks/libMoltenVK.dylib
+          mkdir -p "$(dirname "$F")"
+          cp "$DYLIB" "$F"
+          codesign --force --sign - "$F"
+
+          # Write what was built into the MoltenVK patch (after signing: it changes the file)
+          sed -i '' \
+            -e "s/^MoltenVK: .*/MoltenVK:    $(git -C "$MVK" rev-parse HEAD)/" \
+            -e "s/^SPIRV-Cross: .*/SPIRV-Cross: $(cat "$MVK/ExternalRevisions/SPIRV-Cross_repo_revision")/" \
+            -e "s/^sha256 .*/sha256  $(shasum -a 256 "$F" | cut -d' ' -f1)/" \
+            patches/0001-update-moltenvk.patch
+          cat patches/0001-update-moltenvk.patch
+
+          dotnet build -c Release -o out
+
+      - name: Package
+        run: |
+          M=pkg/MacOSMoltenPatcher
+          mkdir -p "$M/licenses"
+          cp out/MacOSMoltenPatcher.dll out/mod.toml README.md "$M/"
+          cp -R out/patches out/files "$M/"
+
+          # Licenses of everything inside libMoltenVK.dylib
+          cp "$MVK/LICENSE" "$M/licenses/MoltenVK.txt"
+          cp "$MVK/External/SPIRV-Cross/LICENSE" "$M/licenses/SPIRV-Cross.txt"
+          cp "$MVK/External/cereal/LICENSE" "$M/licenses/cereal.txt"
+          cp "$MVK/External/Vulkan-Headers/LICENSE.md" "$M/licenses/Vulkan-Headers.md" 2>/dev/null \
+            || cp "$MVK/External/Vulkan-Headers/LICENSE.txt" "$M/licenses/Vulkan-Headers.txt"
+
+          # Which versions this build contains
+          {
+            echo "MoltenVK:    $(git -C "$MVK" rev-parse HEAD)"
+            echo "SPIRV-Cross: $(cat "$MVK/ExternalRevisions/SPIRV-Cross_repo_revision")"
+            echo "Built:       $(date -u +%Y-%m-%d)"
+          } | tee "$M/versions.txt"
+
+          (cd pkg && zip -r ../MacOSMoltenPatcher.zip MacOSMoltenPatcher)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MacOSMoltenPatcher
+          path: MacOSMoltenPatcher.zip
+
+      - name: Publish release
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: gh release create "$TAG" MacOSMoltenPatcher.zip --target "$GITHUB_SHA" --notes-file pkg/MacOSMoltenPatcher/versions.txt

@@ -1,0 +1,37 @@
+Fix textures treated as depth under MoltenVK
+
+KSA samples shadow maps through the same texture arrays as normal textures.
+SPIRV-Cross then turns the whole array into Metal depth textures, which return
+one channel instead of four, so clouds and planets get wrong colours. Giving
+the shadow lookups their own arrays, bound to the same textures, fixes it.
+Neutral on Windows and Linux (same descriptors).
+
+https://forums.ahwoo.com/forums/kitten-space-agency/bug-reports/some-textures-are-treated-as-depths-under-moltenvk.1089/
+
+Remove once KSA ships this change itself.
+---
+ Content/Core/Shaders/Common/TextureSet.glsl | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/Content/Core/Shaders/Common/TextureSet.glsl b/Content/Core/Shaders/Common/TextureSet.glsl
+--- a/Content/Core/Shaders/Common/TextureSet.glsl
++++ b/Content/Core/Shaders/Common/TextureSet.glsl
+@@ -8,14 +8,16 @@
+ #endif
+ 
+ layout (set = SET_TEXTURE, binding = 0) uniform texture2D globalTextures[];
++layout (set = SET_TEXTURE, binding = 0) uniform texture2D globalShadows[];
+ layout (set = SET_TEXTURE, binding = 0) uniform texture2DArray globalTextureArrays[];
++layout (set = SET_TEXTURE, binding = 0) uniform texture2DArray globalShadowsArray[];
+ layout (set = SET_TEXTURE, binding = 0) uniform textureCube globalTextureCubes[];
+ layout (set = SET_TEXTURE, binding = 1) uniform sampler samplers[];
+ 
+ #define TEXTURE_SAMPLER(texID, samplerID) sampler2D(globalTextures[texID], samplers[samplerID])
+ #define TEXTURE_ARRAY_SAMPLER(texID, samplerID) sampler2DArray(globalTextureArrays[texID], samplers[samplerID])
+-#define SHADOW_ARRAY_SAMPLER(texID, samplerID) sampler2DArrayShadow(globalTextureArrays[texID], samplers[samplerID])
+-#define SHADOW_SAMPLER(texID, samplerID) sampler2DShadow(globalTextures[texID], samplers[samplerID])
++#define SHADOW_ARRAY_SAMPLER(texID, samplerID) sampler2DArrayShadow(globalShadowsArray[texID], samplers[samplerID])
++#define SHADOW_SAMPLER(texID, samplerID) sampler2DShadow(globalShadows[texID], samplers[samplerID])
+ 
+ #define SAMPLE_TEXTURE(texID, samplerID, uv) texture(TEXTURE_SAMPLER(texID, samplerID), uv)
+ #define SAMPLE_ARRAY_TEXTURE(texID, samplerID, uvLayer) texture(TEXTURE_ARRAY_SAMPLER(texID, samplerID), uvLayer)

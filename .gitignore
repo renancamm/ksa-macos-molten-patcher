@@ -55,3 +55,9 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# macOS
+.DS_Store
+
+# Local MoltenVK build
+libMoltenVK.dylib
