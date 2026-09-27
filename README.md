@@ -1,12 +1,12 @@
-# MacOSMoltenPatcher
+# MacOS Molten Patcher
+
+<img src="icon.png" alt="MacOSMoltenPatcher icon" width="128">
 
 A Kitten Space Agency mod that makes the game work on macOS, where it runs through Wine
 (e.g. a Sikarugir wrapper). A StarMap hook runs it before the game starts; it applies the
 patches in its `patches/` folder to the wrapper and the game files.
 
-Each patch is a plain text file that says what it changes and why. A patch is skipped if its
-target file isn't as expected (for example after a game update), and applied again if an update
-restores the original. On Windows or Linux the mod does nothing.
+Each patch is a plain text file that says what it changes and why.
 
 ## Install
 
