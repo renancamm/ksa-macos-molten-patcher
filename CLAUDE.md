@@ -11,14 +11,15 @@ wrapper, and a shader fix in the game folder.
   applied in name order. Title + why, a `---` line, then the change. Shipped to users, keep readable.
 - `build.sh` — builds what the `.replace` patches install into `files/` (at the target's path:
   `files/wrapper/…` or `files/game/…`) and `licenses/`. Both gitignored.
-- `.github/workflows/build.yml` — `build.sh` + `dotnet build` + zip/release, manual trigger only.
-  Never run yet.
+- `.github/workflows/build.yml` — `build.sh` + `dotnet build` + zip (read-only job), then a separate
+  release job (the only one with write access). Manual trigger only. Never run yet.
 - `README.md` — user-facing, generic (see Style).
 
 ## Patch engine rules
 
 - Targets are relative to the game folder (= working directory), or to the wrapper's
   `.app/Contents` with a `wrapper:` prefix. **One patch per target file.**
+  Targets must stay inside their folder: no rooted paths, no `..` (else skipped).
 - Replacement (`.replace`): `target <target>`, `sha256 <hash>`, then `$ ` lines: the shell steps that
   build the file (run by `build.sh` in an empty temp folder, `$OUT` = file to write, `$LICENSES` =
   folder for license texts; the mod ignores them). `build.sh` writes the new sha256 into the patch;

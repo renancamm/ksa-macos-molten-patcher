@@ -10,6 +10,13 @@ namespace MacOSMoltenPatcher
         [StarMapBeforeMain]
         public void OnBeforeMain()
         {
+            // Errors are logged and ignored: the game must always start.
+            try { ApplyAll(); }
+            catch (Exception e) { Log($"Stopped: {e.Message}"); }
+        }
+
+        static void ApplyAll()
+        {
             // e.g. /Users/me/Applications/Sikarugir/KSA.app/Contents/SharedSupport/prefix; unset on Windows.
             string? prefix = Environment.GetEnvironmentVariable("WINEPREFIX");
             int app = prefix?.IndexOf(".app/Contents/", StringComparison.Ordinal) ?? -1;
@@ -18,7 +25,7 @@ namespace MacOSMoltenPatcher
             // Z: is the Mac's root folder.
             string wrapper = "Z:" + prefix![..(app + ".app/Contents".Length)];
 
-            // Errors are logged and ignored: the game must always start.
+            // One bad patch doesn't stop the others.
             string patches = Path.Combine(ModFolder, "patches");
             if (!Directory.Exists(patches)) return;
             var files = Directory.GetFiles(patches, "*.patch").Concat(Directory.GetFiles(patches, "*.replace"));
@@ -48,8 +55,9 @@ namespace MacOSMoltenPatcher
             string target = lines.First(l => l.StartsWith("target "))["target ".Length..].Trim();
             string sha256 = lines.First(l => l.StartsWith("sha256 "))["sha256 ".Length..].Trim().ToLowerInvariant();
             bool inWrapper = target.StartsWith("wrapper:");
-            string file = inWrapper ? wrapper + "/" + target["wrapper:".Length..] : target;
-            string source = Path.Combine(ModFolder, "files", inWrapper ? "wrapper/" + target["wrapper:".Length..] : "game/" + target);
+            string rel = Inside(inWrapper ? target["wrapper:".Length..] : target);
+            string file = inWrapper ? wrapper + "/" + rel : rel;
+            string source = Path.Combine(ModFolder, "files", inWrapper ? "wrapper" : "game", rel);
 
             if (!File.Exists(file)) { Log($"Skipped {name}: {file} not found"); return; }
             if (Sha256(File.ReadAllBytes(file)) == sha256) return;  // already done
@@ -70,6 +78,7 @@ namespace MacOSMoltenPatcher
             // "+++ b/<path>", maybe followed by a tab and a date
             string file = lines.First(l => l.StartsWith("+++ "))[4..].Split('\t')[0];
             if (file.StartsWith("b/")) file = file[2..];
+            file = Inside(file);
 
             // Old text = " " and "-" lines, new text = " " and "+" lines; \n at both ends matches whole lines.
             var hunks = new List<(string Old, string New)>();
@@ -115,6 +124,12 @@ namespace MacOSMoltenPatcher
             File.WriteAllBytes(file + ".new", data);
             File.Move(file + ".new", file, overwrite: true);
         }
+
+        // A patch may only change files inside its folder (game or wrapper), never elsewhere on the Mac.
+        static string Inside(string path) =>
+            Path.IsPathRooted(path) || path.Split('/', '\\').Contains("..")
+                ? throw new InvalidDataException($"target outside its folder: {path}")
+                : path;
 
         static string ModFolder => Path.GetDirectoryName(typeof(Mod).Assembly.Location)!;
 

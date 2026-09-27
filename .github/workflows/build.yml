@@ -3,6 +3,9 @@
 #
 # Runs only when started by hand: Actions tab -> Build -> Run workflow.
 # The zip is attached to the run. Fill in "Release tag" to also publish a GitHub release.
+#
+# The build job runs third-party build code (MoltenVK's scripts), so it can only read the repo.
+# Only the release job, which just uploads the finished zip, can write.
 
 name: Build
 
@@ -14,7 +17,7 @@ on:
         default: ""
 
 permissions:
-  contents: write   # needed to create releases
+  contents: read
 
 jobs:
   build:
@@ -23,6 +26,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # don't leave the token where build code can read it
 
       # MoltenVK's fetchDependencies needs Python 3.11
       - uses: actions/setup-python@v5
@@ -52,9 +57,20 @@ jobs:
           name: MacOSMoltenPatcher
           path: MacOSMoltenPatcher.zip
 
+  release:
+    needs: build
+    if: inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create releases
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: MacOSMoltenPatcher
+
       - name: Publish release
-        if: inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag }}
-        run: gh release create "$TAG" MacOSMoltenPatcher.zip --target "$GITHUB_SHA" --generate-notes
+        run: gh release create "$TAG" MacOSMoltenPatcher.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes
