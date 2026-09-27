@@ -10,7 +10,7 @@ restores the original. On Windows or Linux the mod does nothing.
 
 ## Install
 
-Requires StarMap.
+Requires [StarMap](https://github.com/StarMapLoader/StarMap).
 
 1. Download `MacOSMoltenPatcher.zip` from the latest release.
 2. Extract the `MacOSMoltenPatcher` folder into KSA's mods folder

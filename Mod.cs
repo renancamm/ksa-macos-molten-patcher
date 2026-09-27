@@ -2,8 +2,8 @@ using StarMap.API;
 
 namespace MacOSMoltenPatcher
 {
-    // Before KSA starts, in a Sikarugir wrapper only, applies patches/*.patch in name order.
-    // Each patch changes one file (a replacement or a diff) and keeps the original as <file>.orig.
+    // Before KSA starts, in a Sikarugir wrapper only, applies the files in patches/ in name order:
+    // *.patch (a diff) or *.replace (a whole file). Each changes one file and keeps the original as <file>.orig.
     [StarMapMod]
     public sealed class Mod
     {
@@ -21,7 +21,8 @@ namespace MacOSMoltenPatcher
             // Errors are logged and ignored: the game must always start.
             string patches = Path.Combine(ModFolder, "patches");
             if (!Directory.Exists(patches)) return;
-            foreach (string patch in Directory.GetFiles(patches, "*.patch").Order())
+            var files = Directory.GetFiles(patches, "*.patch").Concat(Directory.GetFiles(patches, "*.replace"));
+            foreach (string patch in files.Order())
             {
                 try { Apply(patch, wrapper); }
                 catch (Exception e) { Log($"Skipped {Path.GetFileName(patch)}: {e.Message}"); }
@@ -34,17 +35,17 @@ namespace MacOSMoltenPatcher
             string[] lines = File.ReadAllText(patch).Replace("\r\n", "\n").Split('\n');
             lines = lines[(Array.IndexOf(lines, "---") + 1)..];  // skip the title and message
 
-            if (lines[0].StartsWith("replace "))
+            if (patch.EndsWith(".replace"))
                 Replace(name, lines, wrapper);
             else
                 TextPatch(name, lines);
         }
 
-        // "replace [wrapper:]<path>" + "sha256 <hash>". The new file is files/wrapper/<path> or
-        // files/game/<path>, used only if its hash matches.
+        // "target [wrapper:]<path>" + "sha256 <hash>" ("$ " build lines are for build.sh). The new file
+        // is files/wrapper/<path> or files/game/<path>, used only if its hash matches.
         static void Replace(string name, string[] lines, string wrapper)
         {
-            string target = lines[0]["replace ".Length..].Trim();
+            string target = lines.First(l => l.StartsWith("target "))["target ".Length..].Trim();
             string sha256 = lines.First(l => l.StartsWith("sha256 "))["sha256 ".Length..].Trim().ToLowerInvariant();
             bool inWrapper = target.StartsWith("wrapper:");
             string file = inWrapper ? wrapper + "/" + target["wrapper:".Length..] : target;

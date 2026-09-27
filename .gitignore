@@ -59,5 +59,6 @@ nunit-*.xml
 # macOS
 .DS_Store
 
-# Local MoltenVK build
-libMoltenVK.dylib
+# Made by build.sh
+files/
+licenses/

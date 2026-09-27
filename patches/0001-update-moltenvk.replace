@@ -1,0 +1,21 @@
+Update MoltenVK to a build that allows 16 descriptor sets
+
+KSA's shaders use descriptor sets 0-9. The MoltenVK in Sikarugir wrappers
+(1.4.2) allows 8, so some shaders fail to compile ("cannot reserve 'buffer'
+resource location") and the game crashes. SPIRV-Cross raised the limit to 16
+in commit 76301541; this MoltenVK is built with a SPIRV-Cross that has it.
+
+Remove once the wrapper ships a MoltenVK with the higher limit.
+---
+target wrapper:Frameworks/libMoltenVK.dylib
+sha256 429b7e72466aade05b50b82b694d65eb1a4464e0eece4f86f0bea222ab2f0367
+$ git clone https://github.com/KhronosGroup/MoltenVK.git && cd MoltenVK
+$ git checkout 50b3cbf373f4165947e0e315c0c37cfb658dfd51
+$ echo aa217aeb6c9f0ace7a0ab233b28807edf45eb165 > ExternalRevisions/SPIRV-Cross_repo_revision
+$ ./fetchDependencies --macos
+$ make macos
+$ cp Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib "$OUT"
+$ cp LICENSE "$LICENSES/MoltenVK.txt"
+$ cp External/SPIRV-Cross/LICENSE "$LICENSES/SPIRV-Cross.txt"
+$ cp External/cereal/LICENSE "$LICENSES/cereal.txt"
+$ cp External/Vulkan-Headers/LICENSE.md "$LICENSES/Vulkan-Headers.md"

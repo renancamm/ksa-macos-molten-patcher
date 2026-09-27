@@ -1,24 +1,29 @@
 # CLAUDE.md
 
 StarMap mod for Kitten Space Agency (KSA) on macOS, where KSA runs in a **Sikarugir** (Wine)
-wrapper. Before the game starts, `Mod.cs` applies `patches/*.patch`: a newer MoltenVK in the
+wrapper. Before the game starts, `Mod.cs` applies the files in `patches/`: a newer MoltenVK in the
 wrapper, and a shader fix in the game folder.
 
 ## Files
 
 - `Mod.cs` — the patch engine (~130 lines). Keep it small and dependency-free.
-- `patches/NNNN-name.patch` — one per change, applied in name order. Title + why, a `---` line,
-  then the change. Shipped to users, so keep them readable.
-- `files/wrapper/…`, `files/game/…` — replacement files at their target paths (the dylib is gitignored).
-- `.github/workflows/build.yml` — builds MoltenVK + mod, manual trigger only. Never run yet.
+- `patches/NNNN-name.patch` (a diff) or `NNNN-name.replace` (a whole file) — one per change,
+  applied in name order. Title + why, a `---` line, then the change. Shipped to users, keep readable.
+- `build.sh` — builds what the `.replace` patches install into `files/` (at the target's path:
+  `files/wrapper/…` or `files/game/…`) and `licenses/`. Both gitignored.
+- `.github/workflows/build.yml` — `build.sh` + `dotnet build` + zip/release, manual trigger only.
+  Never run yet.
 - `README.md` — user-facing, generic (see Style).
 
 ## Patch engine rules
 
 - Targets are relative to the game folder (= working directory), or to the wrapper's
   `.app/Contents` with a `wrapper:` prefix. **One patch per target file.**
-- Replacement: `replace <target>` + `sha256 <hash>`. Done if target hash matches; skipped if the
-  file in `files/` doesn't match. `.orig` written only once. Never creates new files.
+- Replacement (`.replace`): `target <target>`, `sha256 <hash>`, then `$ ` lines: the shell steps that
+  build the file (run by `build.sh` in an empty temp folder, `$OUT` = file to write, `$LICENSES` =
+  folder for license texts; the mod ignores them). `build.sh` writes the new sha256 into the patch;
+  commit it, or the repo's hash is stale. Mod: done if target hash matches; skipped if the file in
+  `files/` doesn't match. `.orig` written only once. Never creates new files.
 - Text patch: normal diff, hunks matched by text (`@@` numbers ignored). Done if all new lines
   are present; applied only if all old lines occur exactly once; else skipped. Keeps CRLF.
   `.orig` overwritten on each apply.
@@ -49,10 +54,11 @@ wrapper, and a shader fix in the game folder.
 
 ## Status
 
-- Tested config: Apple M5, KSA under Rosetta (x86_64), MoltenVK `main` + SPIRV-Cross `aa217aeb…`,
-  plain `make macos`. No env vars needed.
+- Tested config: Apple M5, KSA under Rosetta (x86_64), MoltenVK `main` (before 2026-09-27) +
+  SPIRV-Cross `aa217aeb…`, plain `make macos`. No env vars needed. The MoltenVK commit pinned in
+  `0001` (`50b3cbf`, `main` on 2026-09-27) is not tested in-game yet.
 - The earlier dylib-only mod was verified in-game. The patch engine and the shader patch are only
-  tested in a local harness, **not in-game**; the workflow has never run.
+  tested in a local harness, **not in-game**; `build.sh` and the workflow have never run.
 
 ## Running StarMap in the wrapper
 
