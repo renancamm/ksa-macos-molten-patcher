@@ -45,7 +45,7 @@ namespace MacOSMoltenPatcher
             if (patch.EndsWith(".replace"))
                 Replace(name, lines, wrapper);
             else
-                TextPatch(name, lines);
+                TextPatch(name, lines, wrapper);
         }
 
         // "target [wrapper:]<path>" + "sha256 <hash>" ("$ " build lines are for build.sh). The new file
@@ -54,9 +54,7 @@ namespace MacOSMoltenPatcher
         {
             string target = lines.First(l => l.StartsWith("target "))["target ".Length..].Trim();
             string sha256 = lines.First(l => l.StartsWith("sha256 "))["sha256 ".Length..].Trim().ToLowerInvariant();
-            bool inWrapper = target.StartsWith("wrapper:");
-            string rel = Inside(inWrapper ? target["wrapper:".Length..] : target);
-            string file = inWrapper ? wrapper + "/" + rel : rel;
+            var (file, inWrapper, rel) = Resolve(target, wrapper);
             string source = Path.Combine(ModFolder, "files", inWrapper ? "wrapper" : "game", rel);
 
             if (!File.Exists(file)) { Log($"Skipped {name}: {file} not found"); return; }
@@ -68,17 +66,20 @@ namespace MacOSMoltenPatcher
             // Only the first time, to keep the wrapper's own file.
             if (!File.Exists(file + ".orig")) File.Copy(file, file + ".orig");
             Write(file, data);
+
+            // macOS re-reads a cached app only when the .app's date changes.
+            Directory.SetLastWriteTime(Path.GetDirectoryName(wrapper)!, DateTime.Now);
             Log($"Applied {name} to {file}");
         }
 
-        // A diff of one game file. Hunks are matched by text, not line numbers: done if all new
+        // A diff of one file. Hunks are matched by text, not line numbers: done if all new
         // lines are present, applied only if all old lines occur exactly once, else skipped.
-        static void TextPatch(string name, string[] lines)
+        static void TextPatch(string name, string[] lines, string wrapper)
         {
-            // "+++ b/<path>", maybe followed by a tab and a date
-            string file = lines.First(l => l.StartsWith("+++ "))[4..].Split('\t')[0];
-            if (file.StartsWith("b/")) file = file[2..];
-            file = Inside(file);
+            // "+++ b/[wrapper:]<path>", maybe followed by a tab and a date
+            string target = lines.First(l => l.StartsWith("+++ "))[4..].Split('\t')[0];
+            if (target.StartsWith("b/")) target = target[2..];
+            string file = Resolve(target, wrapper).File;
 
             // Old text = " " and "-" lines, new text = " " and "+" lines; \n at both ends matches whole lines.
             var hunks = new List<(string Old, string New)>();
@@ -123,6 +124,14 @@ namespace MacOSMoltenPatcher
         {
             File.WriteAllBytes(file + ".new", data);
             File.Move(file + ".new", file, overwrite: true);
+        }
+
+        // "wrapper:<path>" is in the wrapper's .app/Contents, anything else in the game folder.
+        static (string File, bool InWrapper, string Rel) Resolve(string target, string wrapper)
+        {
+            bool inWrapper = target.StartsWith("wrapper:");
+            string rel = Inside(inWrapper ? target["wrapper:".Length..] : target);
+            return (inWrapper ? wrapper + "/" + rel : rel, inWrapper, rel);
         }
 
         // A patch may only change files inside its folder (game or wrapper), never elsewhere on the Mac.

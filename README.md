@@ -10,7 +10,7 @@ Each patch is a plain text file that says what it changes and why.
 
 ## Install
 
-Requires [StarMap](https://github.com/StarMapLoader/StarMap).
+Requires [StarMap](https://github.com/StarMapLoader/StarMap). The wrapper's engine must be Wine 10 (tested on WS12WineSikarugir10.0_6); Wine 11 is not supported.
 
 1. Download `MacOSMoltenPatcher.zip` from the latest release.
 2. Extract the `MacOSMoltenPatcher` folder into KSA's mods folder

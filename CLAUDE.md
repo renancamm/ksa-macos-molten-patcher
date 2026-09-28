@@ -12,23 +12,25 @@ wrapper, and a shader fix in the game folder.
 - `build.sh` — builds what the `.replace` patches install into `files/` (at the target's path:
   `files/wrapper/…` or `files/game/…`) and `licenses/`. Both gitignored.
 - `.github/workflows/build.yml` — `build.sh` + `dotnet build` + zip (read-only job), then a separate
-  release job (the only one with write access). Manual trigger only. Never run yet.
+  release job (the only one with write access). Manual trigger only.
 - `README.md` — user-facing, generic (see Style).
 
 ## Patch engine rules
 
+- **Prefer text patches**: more transparent and easier to audit. `.replace` only for binary files.
 - Targets are relative to the game folder (= working directory), or to the wrapper's
-  `.app/Contents` with a `wrapper:` prefix. **One patch per target file.**
+  `.app/Contents` with a `wrapper:` prefix (both patch types). **One patch per target file.**
   Targets must stay inside their folder: no rooted paths, no `..` (else skipped).
 - Replacement (`.replace`): `target <target>`, `sha256 <hash>`, then `$ ` lines: the shell steps that
   build the file (run by `build.sh` in an empty temp folder, `$OUT` = file to write, `$LICENSES` =
   folder for license texts; the mod ignores them). `build.sh` writes the new sha256 into the patch;
   commit it, or the repo's hash is stale. Mod: done if target hash matches; skipped if the file in
-  `files/` doesn't match. `.orig` written only once. Never creates new files.
+  `files/` doesn't match. `.orig` written only once. Touches the `.app`. Never creates new
+  files.
 - Text patch: normal diff, hunks matched by text (`@@` numbers ignored). Done if all new lines
   are present; applied only if all old lines occur exactly once; else skipped. Keeps CRLF.
   `.orig` overwritten on each apply.
-- Make one: scratch git repo with the original file (LF, game-relative path), edit,
+- Make one: scratch git repo with the original file (LF, target path), edit,
   `git diff --stat -p > patches/NNNN-name.patch`, add title/why/`---`, check with `git apply --check`.
   Keep 3 lines of context.
 - Removing a patch file does not revert already-patched installs.
@@ -53,16 +55,13 @@ wrapper, and a shader fix in the game folder.
   (shaderc at startup), so both patches work in the same launch.
 - StarMap attributes are declared locally in `namespace StarMap.API` (matched by name).
 - Wrapper = `WINEPREFIX` cut at `.app/Contents`; no `WINEPREFIX` → do nothing. Mac paths via `Z:`.
-- Wine loads `KSA.app/Contents/Frameworks/libMoltenVK.dylib`. Don't touch `Frameworks/moltenvkcx/`.
+- Wine 10 and WineCX load `Frameworks/libMoltenVK.dylib` directly. **Wine 11 is not supported**:
+  on macOS 26 it uses KosmicKrisp instead, where KSA crashes (and the mouse misbehaves).
 - Replaced dylib loses its executable bit; dlopen doesn't care.
 
 ## Status
 
-- Tested config: Apple M5, KSA under Rosetta (x86_64), MoltenVK `main` (before 2026-09-27) +
-  SPIRV-Cross `aa217aeb…`, plain `make macos`. No env vars needed. The MoltenVK commit pinned in
-  `0001` (`50b3cbf`, `main` on 2026-09-27) is not tested in-game yet.
-- The earlier dylib-only mod was verified in-game. The patch engine and the shader patch are only
-  tested in a local harness, **not in-game**; `build.sh` and the workflow have never run.
+- Verified in-game 2026-09-28 from a fresh install with the CI zip: Apple M5, WineCX 24.0.7.
 
 ## Running StarMap in the wrapper
 
@@ -79,7 +78,6 @@ wrapper, and a shader fix in the game folder.
 - Private-API MoltenVK build: only removes primitive-restart warnings.
 - Ray-tracing MoltenVK fork: GPU page fault when changing anti-aliasing.
 - `MVK_CONFIG_*` / `MTL_*` env vars, `settings.toml` tweaks: not needed.
-
 ## Style
 
 - Simple, non-intrusive, small readable code over features.

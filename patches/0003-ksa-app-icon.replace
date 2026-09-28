@@ -1,8 +1,8 @@
 Use the KSA title card as the wrapper's app icon
 
 Sikarugir wrappers show a generic icon. This one is the bottom square of KSA's
-title card (the kitten astronaut), at 1024x1024. Finder and the Dock may keep
-showing the old icon until they refresh their icon cache.
+title card (the kitten astronaut), at 1024x1024. The Dock may keep showing
+the old icon until it restarts.
 ---
 target wrapper:Resources/Configure.icns
 sha256 4a145e2b07b4900f5f7c464d7d5075d9bd4b5d2aac6ee7c4d77b9335bab37e95
