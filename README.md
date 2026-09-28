@@ -11,7 +11,7 @@ Each patch is a plain text file that says what it changes and why.
 
 Requires [StarMap](https://github.com/StarMapLoader/StarMap). The wrapper's engine must be Wine 10 (tested on WS12WineSikarugir10.0_6); Wine 11 is not supported.
 
-1. Download `MacOSMoltenPatcher.zip` from the latest release, or build it (see [Build](#build)).
+1. Download `MacOSMoltenPatcher.zip` from the [latest release](https://github.com/renancamm/ksa-macos-molten-patcher/releases/latest), or build it (see [Build](#build)).
 2. Extract the `MacOSMoltenPatcher` folder into KSA's mods folder
    (`Documents/My Games/Kitten Space Agency/mods/`).
 3. Start the game through StarMap.

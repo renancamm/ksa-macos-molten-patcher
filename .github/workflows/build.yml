@@ -42,7 +42,9 @@ jobs:
         run: ./build.sh
 
       - name: Build the mod folder
-        run: dotnet build -c Release -o out/MacOSMoltenPatcher
+        env:
+          TAG: ${{ inputs.release_tag }}
+        run: dotnet build -c Release -o out/MacOSMoltenPatcher ${TAG:+"-p:Version=${TAG#v}"}
 
       - name: Package
         run: cd out && zip -r ../MacOSMoltenPatcher.zip MacOSMoltenPatcher
@@ -68,4 +70,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag }}
-        run: gh release create "$TAG" MacOSMoltenPatcher.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --notes "sha256: $(sha256sum MacOSMoltenPatcher.zip | cut -d' ' -f1)"
+        run: |
+          gh release create "$TAG" MacOSMoltenPatcher.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --notes "sha256: $(sha256sum MacOSMoltenPatcher.zip | cut -d' ' -f1)"
