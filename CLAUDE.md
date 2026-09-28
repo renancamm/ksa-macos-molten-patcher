@@ -40,9 +40,9 @@ wrapper, and a shader fix in the game folder.
 
 - **MoltenVK**: KSA uses descriptor sets 0–9. MoltenVK's limit comes from SPIRV-Cross
   `kMaxArgumentBuffers` = 8 → `cannot reserve 'buffer' resource location` → crash. SPIRV-Cross
-  `76301541` (2026-09-01) raised it to 16, but MoltenVK (≤ 1.4.2, `main` as of 2026-09-26) pins an
-  older one, so we override `ExternalRevisions/SPIRV-Cross_repo_revision`. Drop the override once
-  MoltenVK pins a newer SPIRV-Cross.
+  `76301541` (2026-09-01) raised it to 16; MoltenVK `main` pins it since `b0753ebc` (2026-09-27),
+  but no release yet (≤ 1.4.2), so we build that commit. Drop the patch once the wrapper ships a
+  MoltenVK release that includes it.
 - **TextureSet.glsl**: shadow macros sample `globalTextures[]` / `globalTextureArrays[]`, so
   SPIRV-Cross declares them `depth2d` (1 channel). Fix adds `globalShadows[]` / `globalShadowsArray[]`
   at the same set/binding. All shadow sampling goes through those macros. Remove once KSA fixes it.
