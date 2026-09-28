@@ -41,16 +41,11 @@ jobs:
       - name: Build replacement files
         run: ./build.sh
 
-      - name: Build the mod
-        run: dotnet build -c Release -o out
+      - name: Build the mod folder
+        run: dotnet build -c Release -o out/MacOSMoltenPatcher
 
       - name: Package
-        run: |
-          M=pkg/MacOSMoltenPatcher
-          mkdir -p "$M"
-          cp out/MacOSMoltenPatcher.dll out/mod.toml README.md "$M/"
-          cp -R out/patches out/files out/licenses "$M/"
-          (cd pkg && zip -r ../MacOSMoltenPatcher.zip MacOSMoltenPatcher)
+        run: cd out && zip -r ../MacOSMoltenPatcher.zip MacOSMoltenPatcher
 
       - uses: actions/upload-artifact@v4
         with:

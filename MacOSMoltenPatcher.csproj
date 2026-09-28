@@ -6,12 +6,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>MacOSMoltenPatcher</AssemblyName>
+    <!-- Only the mod's files in the output: no .pdb or .deps.json -->
+    <DebugType>none</DebugType>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- Build output folder (see README), not part of the project -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);out/**</DefaultItemExcludes>
   </PropertyGroup>
 
-  <!-- The mod folder: MacOSMoltenPatcher.dll, mod.toml, patches/, and what build.sh makes:
+  <!-- The mod folder: MacOSMoltenPatcher.dll, mod.toml, README.md, patches/, and what build.sh makes:
        files/ (replacement files at their target paths) and licenses/ -->
   <ItemGroup>
     <None Update="mod.toml" CopyToOutputDirectory="Always" />
+    <None Update="README.md" CopyToOutputDirectory="Always" />
     <None Update="patches/*" CopyToOutputDirectory="Always" />
     <None Update="files/**" CopyToOutputDirectory="PreserveNewest" />
     <None Update="licenses/**" CopyToOutputDirectory="PreserveNewest" />

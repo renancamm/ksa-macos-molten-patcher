@@ -83,6 +83,6 @@ wrapper, and a shader fix in the game folder.
 - Simple, non-intrusive, small readable code over features.
 - Only touch `Frameworks/libMoltenVK.dylib` and files named in `patches/`.
 - Each step: a short why comment, what it changes, an "already done" check.
-- README stays generic (intent, install, permanence warning, licenses): no per-patch details or
-  build steps, so it stays correct when patches change. Patch files and the workflow document those.
+- README stays generic (intent, install, build, permanence warning, licenses): no per-patch details,
+  so it stays correct when patches change. Patch files and the workflow document those.
 - Workflow runs manually only. Release zips must include the dylib's licenses (`licenses/`).

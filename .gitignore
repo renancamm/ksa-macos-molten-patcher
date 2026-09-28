@@ -62,3 +62,6 @@ nunit-*.xml
 # Made by build.sh
 files/
 licenses/
+
+# Local build (see README)
+out/
