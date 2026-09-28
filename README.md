@@ -7,6 +7,8 @@ patches in its `patches/` folder to the wrapper and the game files.
 
 Each patch is a plain text file that says what it changes and why.
 
+**Tested with `KSA 2026.9.22.5482`.**
+
 ## Install
 
 Requires [StarMap](https://github.com/StarMapLoader/StarMap). The wrapper's engine must be Wine 10 (tested on WS12WineSikarugir10.0_6); Wine 11 is not supported.

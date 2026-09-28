@@ -62,7 +62,7 @@ wrapper, and a shader fix in the game folder.
 
 ## Status
 
-- Verified in-game 2026-09-28 from a fresh install with the CI zip: Apple M5,
+- Verified in-game 2026-09-28 from a fresh install with the CI zip: KSA 2026.9.22.5482, Apple M5,
   WS12WineSikarugir10.0_6 (recommended engine).
 
 ## Running StarMap in the wrapper
