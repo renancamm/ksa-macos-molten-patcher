@@ -2,8 +2,7 @@
 
 <img src="icon.png" alt="MacOSMoltenPatcher icon" width="128">
 
-A Kitten Space Agency mod that lets the Windows version of the game run on macOS through Wine
-(e.g. in a Sikarugir wrapper). A StarMap hook runs it before the game starts; it applies the
+A Kitten Space Agency mod that lets the Windows version of the game run on macOS in a [Sikarugir Wine wrapper](https://github.com/Sikarugir-App/Sikarugir). A StarMap hook runs it before the game starts; it applies the
 patches in its `patches/` folder to the wrapper and the game files.
 
 Each patch is a plain text file that says what it changes and why.
@@ -26,12 +25,11 @@ Needs macOS with Xcode, Python 3.11 and the .NET 10 SDK. From the repo folder:
 dotnet build -c Release -o out/MacOSMoltenPatcher
 ```
 
-
 ## Warning: changes are permanent
 
 The patches edit files in your wrapper and game folder. **Removing the mod does not undo them.**
-Before changing a file, the mod saves the original next to it as `<file>.orig`. To revert, copy
-the `.orig` back over the file.
+Before changing a file, the mod saves the original next to it as `<file>.orig`, so every changed
+file has one. To revert, remove the mod first, then copy each `.orig` back over its file.
 
 ## Licenses
 

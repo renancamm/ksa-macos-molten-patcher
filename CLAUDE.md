@@ -6,13 +6,14 @@ wrapper, and a shader fix in the game folder.
 
 ## Files
 
-- `Mod.cs` — the patch engine (~130 lines). Keep it small and dependency-free.
+- `Mod.cs` — the patch engine (~160 lines). Keep it small and dependency-free.
 - `patches/NNNN-name.patch` (a diff) or `NNNN-name.replace` (a whole file) — one per change,
   applied in name order. Title + why, a `---` line, then the change. Shipped to users, keep readable.
 - `build.sh` — builds what the `.replace` patches install into `files/` (at the target's path:
   `files/wrapper/…` or `files/game/…`) and `licenses/`. Both gitignored.
 - `.github/workflows/build.yml` — `build.sh` + `dotnet build` + zip (read-only job), then a separate
-  release job (the only one with write access). Manual trigger only.
+  release job (the only one with write access, `main` only, zip sha256 in the notes). Manual
+  trigger only. Actions pinned by SHA, runner by version.
 - `README.md` — user-facing, generic (see Style).
 
 ## Patch engine rules
@@ -21,15 +22,15 @@ wrapper, and a shader fix in the game folder.
 - Targets are relative to the game folder (= working directory), or to the wrapper's
   `.app/Contents` with a `wrapper:` prefix (both patch types). **One patch per target file.**
   Targets must stay inside their folder: no rooted paths, no `..` (else skipped).
-- Replacement (`.replace`): `target <target>`, `sha256 <hash>`, then `$ ` lines: the shell steps that
-  build the file (run by `build.sh` in an empty temp folder, `$OUT` = file to write, `$LICENSES` =
-  folder for license texts; the mod ignores them). `build.sh` writes the new sha256 into the patch;
-  commit it, or the repo's hash is stale. Mod: done if target hash matches; skipped if the file in
-  `files/` doesn't match. `.orig` written only once. Touches the `.app`. Never creates new
-  files.
-- Text patch: normal diff, hunks matched by text (`@@` numbers ignored). Done if all new lines
-  are present; applied only if all old lines occur exactly once; else skipped. Keeps CRLF.
-  `.orig` overwritten on each apply.
+- No `---` line → skipped.
+- Replacement (`.replace`): `target <target>`, then `$ ` lines: the shell steps that build the file
+  (run by `build.sh` in an empty temp folder, `$OUT` = file to write, `$LICENSES` = folder for
+  license texts; the mod ignores them). Builds aren't reproducible, so no hash in the repo. Mod:
+  done if target equals the file in `files/`. `.orig` written only once. Wrapper targets touch the
+  `.app`. Never creates new files.
+- Text patch: normal diff of exactly one file, hunks matched by text (`@@` numbers ignored). Done
+  if all new lines are present; applied only if all old lines occur exactly once; else skipped.
+  Keeps CRLF. UTF-8/ASCII files only. `.orig` overwritten on each apply.
 - Make one: scratch git repo with the original file (LF, target path), edit,
   `git diff --stat -p > patches/NNNN-name.patch`, add title/why/`---`, check with `git apply --check`.
   Keep 3 lines of context.
@@ -61,7 +62,8 @@ wrapper, and a shader fix in the game folder.
 
 ## Status
 
-- Verified in-game 2026-09-28 from a fresh install with the CI zip: Apple M5, WineCX 24.0.7.
+- Verified in-game 2026-09-28 from a fresh install with the CI zip: Apple M5,
+  WS12WineSikarugir10.0_6 (recommended engine).
 
 ## Running StarMap in the wrapper
 

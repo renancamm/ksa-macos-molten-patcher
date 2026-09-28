@@ -7,7 +7,7 @@ mkdir -p licenses
 
 for patch in patches/*.replace; do
     # "target wrapper:Frameworks/x" -> files/wrapper/Frameworks/x, "target x" -> files/game/x
-    target=$(grep '^target ' "$patch" | cut -d' ' -f2)
+    target=$(sed -n 's/^target //p' "$patch")
     if [[ "$target" == wrapper:* ]]; then
         out="$repo/files/wrapper/${target#wrapper:}"
     else
@@ -15,14 +15,11 @@ for patch in patches/*.replace; do
     fi
     mkdir -p "$(dirname "$out")"
 
-    # Run the "$ " lines as one script, in an empty folder outside the repo.
+    # Run the "$ " lines as one script, in an empty folder outside the repo (kept if it fails).
     echo "Building $out from $patch"
-    steps=$(mktemp)
-    grep '^\$ ' "$patch" | cut -c3- > "$steps"
-    (cd "$(mktemp -d)" && OUT="$out" LICENSES="$repo/licenses" bash -e "$steps")
-
-    # Write the new file's hash into the patch, so the mod accepts it.
-    hash=$(shasum -a 256 "$out" | cut -d' ' -f1)
-    sed -i '' "s/^sha256 .*/sha256 $hash/" "$patch"
-    echo "$patch: sha256 $hash"
+    tmp=$(mktemp -d)
+    mkdir "$tmp/work"
+    grep '^\$ ' "$patch" | cut -c3- > "$tmp/steps.sh"
+    (cd "$tmp/work" && OUT="$out" LICENSES="$repo/licenses" bash -e "$tmp/steps.sh")
+    rm -rf "$tmp"
 done

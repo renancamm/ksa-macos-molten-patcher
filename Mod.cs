@@ -40,7 +40,9 @@ namespace MacOSMoltenPatcher
         {
             string name = Path.GetFileNameWithoutExtension(patch);
             string[] lines = File.ReadAllText(patch).Replace("\r\n", "\n").Split('\n');
-            lines = lines[(Array.IndexOf(lines, "---") + 1)..];  // skip the title and message
+            int start = Array.IndexOf(lines, "---");
+            if (start < 0) throw new FormatException("no '---' line");
+            lines = lines[(start + 1)..];  // skip the title and message
 
             if (patch.EndsWith(".replace"))
                 Replace(name, lines, wrapper);
@@ -48,27 +50,25 @@ namespace MacOSMoltenPatcher
                 TextPatch(name, lines, wrapper);
         }
 
-        // "target [wrapper:]<path>" + "sha256 <hash>" ("$ " build lines are for build.sh). The new file
-        // is files/wrapper/<path> or files/game/<path>, used only if its hash matches.
+        // "target [wrapper:]<path>" ("$ " build lines are for build.sh). The new file
+        // is files/wrapper/<path> or files/game/<path>.
         static void Replace(string name, string[] lines, string wrapper)
         {
-            string target = lines.First(l => l.StartsWith("target "))["target ".Length..].Trim();
-            string sha256 = lines.First(l => l.StartsWith("sha256 "))["sha256 ".Length..].Trim().ToLowerInvariant();
+            string target = lines.FirstOrDefault(l => l.StartsWith("target "))?["target ".Length..].Trim()
+                ?? throw new FormatException("no 'target' line");
             var (file, inWrapper, rel) = Resolve(target, wrapper);
             string source = Path.Combine(ModFolder, "files", inWrapper ? "wrapper" : "game", rel);
 
             if (!File.Exists(file)) { Log($"Skipped {name}: {file} not found"); return; }
-            if (Sha256(File.ReadAllBytes(file)) == sha256) return;  // already done
-
             byte[] data = File.ReadAllBytes(source);
-            if (Sha256(data) != sha256) { Log($"Skipped {name}: {source} doesn't match the patch's sha256"); return; }
+            if (File.ReadAllBytes(file).AsSpan().SequenceEqual(data)) return;  // already done
 
             // Only the first time, to keep the wrapper's own file.
             if (!File.Exists(file + ".orig")) File.Copy(file, file + ".orig");
             Write(file, data);
 
             // macOS re-reads a cached app only when the .app's date changes.
-            Directory.SetLastWriteTime(Path.GetDirectoryName(wrapper)!, DateTime.Now);
+            if (inWrapper) Directory.SetLastWriteTime(Path.GetDirectoryName(wrapper)!, DateTime.Now);
             Log($"Applied {name} to {file}");
         }
 
@@ -77,7 +77,9 @@ namespace MacOSMoltenPatcher
         static void TextPatch(string name, string[] lines, string wrapper)
         {
             // "+++ b/[wrapper:]<path>", maybe followed by a tab and a date
-            string target = lines.First(l => l.StartsWith("+++ "))[4..].Split('\t')[0];
+            string[] targets = lines.Where(l => l.StartsWith("+++ ")).ToArray();
+            if (targets.Length != 1) throw new FormatException("must change exactly one file");
+            string target = targets[0][4..].Split('\t')[0];
             if (target.StartsWith("b/")) target = target[2..];
             string file = Resolve(target, wrapper).File;
 
@@ -126,7 +128,7 @@ namespace MacOSMoltenPatcher
             File.Move(file + ".new", file, overwrite: true);
         }
 
-        // "wrapper:<path>" is in the wrapper's .app/Contents, anything else in the game folder.
+        // "wrapper:<path>" is in the wrapper's .app/Contents, anything else in the game folder (the working directory).
         static (string File, bool InWrapper, string Rel) Resolve(string target, string wrapper)
         {
             bool inWrapper = target.StartsWith("wrapper:");
@@ -141,9 +143,6 @@ namespace MacOSMoltenPatcher
                 : path;
 
         static string ModFolder => Path.GetDirectoryName(typeof(Mod).Assembly.Location)!;
-
-        static string Sha256(byte[] data) =>
-            Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(data));
 
         static void Log(string message) => Console.WriteLine("[MacOSMoltenPatcher] " + message);
     }

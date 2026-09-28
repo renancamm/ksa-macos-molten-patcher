@@ -5,7 +5,6 @@ title card (the kitten astronaut), at 1024x1024. The Dock may keep showing
 the old icon until it restarts.
 ---
 target wrapper:Resources/Configure.icns
-sha256 4a145e2b07b4900f5f7c464d7d5075d9bd4b5d2aac6ee7c4d77b9335bab37e95
 $ curl -fsSLo card.jpg https://ahwoo.com/ksa/title-card.jpg
 $ # The card is 900x1350: keep the bottom 898x898 (sips skips the crop if an offset is 0).
 $ sips -s format png -c 898 898 --cropOffset 452 1 card.jpg --out square.png
