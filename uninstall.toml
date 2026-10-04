@@ -1,0 +1,3 @@
+# Set to true, then start the game through StarMap once: the mod puts back every original file
+# it changed. Then remove the mod.
+revert_changes = false

@@ -4,6 +4,7 @@ namespace MacOSMoltenPatcher
 {
     // Before KSA starts, in a Sikarugir wrapper only, applies the files in patches/ in name order:
     // *.patch (a diff) or *.replace (a whole file). Each changes one file and keeps the original as <file>.orig.
+    // With "revert_changes = true" in uninstall.toml, puts each <file>.orig back instead.
     [StarMapMod]
     public sealed class Mod
     {
@@ -25,18 +26,22 @@ namespace MacOSMoltenPatcher
             // Z: is the Mac's root folder.
             string wrapper = "Z:" + prefix![..(app + ".app/Contents".Length)];
 
+            string uninstall = Path.Combine(ModFolder, "uninstall.toml");
+            bool revert = File.Exists(uninstall)
+                && File.ReadLines(uninstall).Any(l => l.Replace(" ", "") == "revert_changes=true");
+
             // One bad patch doesn't stop the others.
             string patches = Path.Combine(ModFolder, "patches");
             if (!Directory.Exists(patches)) return;
             var files = Directory.GetFiles(patches, "*.patch").Concat(Directory.GetFiles(patches, "*.replace"));
             foreach (string patch in files.Order())
             {
-                try { Apply(patch, wrapper); }
+                try { Apply(patch, wrapper, revert); }
                 catch (Exception e) { Log($"Skipped {Path.GetFileName(patch)}: {e.Message}"); }
             }
         }
 
-        static void Apply(string patch, string wrapper)
+        static void Apply(string patch, string wrapper, bool revert)
         {
             string name = Path.GetFileNameWithoutExtension(patch);
             string[] lines = File.ReadAllText(patch).Replace("\r\n", "\n").Split('\n');
@@ -45,18 +50,23 @@ namespace MacOSMoltenPatcher
             lines = lines[(start + 1)..];  // skip the title and message
 
             if (patch.EndsWith(".replace"))
-                Replace(name, lines, wrapper);
+                Replace(name, lines, wrapper, revert);
             else
-                TextPatch(name, lines, wrapper);
+                TextPatch(name, lines, wrapper, revert);
         }
 
         // "target [wrapper:]<path>" ("$ " build lines are for build.sh). The new file
         // is files/wrapper/<path> or files/game/<path>.
-        static void Replace(string name, string[] lines, string wrapper)
+        static void Replace(string name, string[] lines, string wrapper, bool revert)
         {
             string target = lines.FirstOrDefault(l => l.StartsWith("target "))?["target ".Length..].Trim()
                 ?? throw new FormatException("no 'target' line");
             var (file, inWrapper, rel) = Resolve(target, wrapper);
+            if (revert)
+            {
+                if (Restore(name, file) && inWrapper) Directory.SetLastWriteTime(Path.GetDirectoryName(wrapper)!, DateTime.Now);
+                return;
+            }
             string source = Path.Combine(ModFolder, "files", inWrapper ? "wrapper" : "game", rel);
 
             if (!File.Exists(file)) { Log($"Skipped {name}: {file} not found"); return; }
@@ -74,7 +84,7 @@ namespace MacOSMoltenPatcher
 
         // A diff of one file. Hunks are matched by text, not line numbers: done if all new
         // lines are present, applied only if all old lines occur exactly once, else skipped.
-        static void TextPatch(string name, string[] lines, string wrapper)
+        static void TextPatch(string name, string[] lines, string wrapper, bool revert)
         {
             // "+++ b/[wrapper:]<path>", maybe followed by a tab and a date
             string[] targets = lines.Where(l => l.StartsWith("+++ ")).ToArray();
@@ -82,6 +92,7 @@ namespace MacOSMoltenPatcher
             string target = targets[0][4..].Split('\t')[0];
             if (target.StartsWith("b/")) target = target[2..];
             string file = Resolve(target, wrapper).File;
+            if (revert) { Restore(name, file); return; }
 
             // Old text = " " and "-" lines, new text = " " and "+" lines; \n at both ends matches whole lines.
             var hunks = new List<(string Old, string New)>();
@@ -126,6 +137,15 @@ namespace MacOSMoltenPatcher
         {
             File.WriteAllBytes(file + ".new", data);
             File.Move(file + ".new", file, overwrite: true);
+        }
+
+        // No .orig: never patched, or already reverted.
+        static bool Restore(string name, string file)
+        {
+            if (!File.Exists(file + ".orig")) return false;
+            File.Move(file + ".orig", file, overwrite: true);
+            Log($"Reverted {name} on {file}");
+            return true;
         }
 
         // "wrapper:<path>" is in the wrapper's .app/Contents, anything else in the game folder (the working directory).

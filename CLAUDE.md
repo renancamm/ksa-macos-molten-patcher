@@ -35,6 +35,8 @@ wrapper, and a shader fix in the game folder.
   `git diff --stat -p > patches/NNNN-name.patch`, add title/why/`---`, check with `git apply --check`.
   Keep 3 lines of context.
 - Removing a patch file does not revert already-patched installs.
+- `uninstall.toml` `revert_changes = true`: instead of applying, each patch moves `<target>.orig`
+  back (if present). No checks (a KSA reinstall fixes a stale one).
 
 ## Why the patches exist
 

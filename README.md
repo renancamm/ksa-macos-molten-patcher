@@ -33,11 +33,17 @@ Needs macOS with Xcode, Python 3.11 and the .NET 10 SDK. From the repo folder:
 dotnet build -c Release -o out/MacOSMoltenPatcher
 ```
 
-## Warning: changes are permanent
+## Uninstall
 
-The patches edit files in your wrapper and game folder. **Removing the mod does not undo them.**
-Before changing a file, the mod saves the original next to it as `<file>.orig`, so every changed
-file has one. To revert, remove the mod first, then copy each `.orig` back over its file.
+The patches change files in your wrapper and game folder. **Removing the mod does not undo them.**
+The mod keeps each original file next to it as `<file>.orig`.
+
+To undo the changes:
+
+1. In the mod folder, open `uninstall.toml` and set `revert_changes = true`.
+2. Start the game through StarMap once. The mod restores the original files. The game may not
+   start on this launch.
+3. Remove the mod.
 
 ## Licenses
 
