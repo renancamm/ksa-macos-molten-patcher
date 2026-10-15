@@ -22,16 +22,6 @@ removed, a `---` line, then the change itself. There are two kinds:
 The target is a path inside the game folder, or inside the wrapper's `Contents` folder when it
 starts with `wrapper:`. Patches cannot reach anywhere else.
 
-Each launch, for every patch:
-
-- Already applied → nothing to do.
-- Target differs from what the patch expects (for example after a game update) → skipped, the
-  file is left untouched.
-- Otherwise → the original is saved as `<file>.orig` and the change is written.
-
-A patch that fails is logged and skipped; the game always starts. Patches never create files, only
-change existing ones. See [Uninstall](#uninstall) for putting the originals back.
-
 
 ## Install
 
