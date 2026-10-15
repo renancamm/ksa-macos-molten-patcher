@@ -1,14 +1,15 @@
 # CLAUDE.md
 
 StarMap mod for Kitten Space Agency (KSA) on macOS, where KSA runs in a **Sikarugir** (Wine)
-wrapper. Before the game starts, `Mod.cs` applies the files in `patches/`: a newer MoltenVK in the
-wrapper, and a shader fix in the game folder.
+wrapper. Before the game starts, `Mod.cs` applies the files in `patches/` to the wrapper and the
+game folder.
 
 ## Files
 
-- `Mod.cs` — the patch engine (~160 lines). Keep it small and dependency-free.
+- `Mod.cs` — the patch engine. Keep it small and dependency-free.
 - `patches/NNNN-name.patch` (a diff) or `NNNN-name.replace` (a whole file) — one per change,
   applied in name order. Title + why, a `---` line, then the change. Shipped to users, keep readable.
+  A `.disabled` suffix turns a patch off.
 - `build.sh` — builds what the `.replace` patches install into `files/` (at the target's path:
   `files/wrapper/…` or `files/game/…`) and `licenses/`. Both gitignored.
 - `.github/workflows/build.yml` — `build.sh` + `dotnet build` + zip (read-only job), then a separate
@@ -38,54 +39,52 @@ wrapper, and a shader fix in the game folder.
 - `uninstall.toml` `revert_changes = true`: instead of applying, each patch moves `<target>.orig`
   back (if present). No checks (a KSA reinstall fixes a stale one).
 
-## Why the patches exist
+## Patches
 
-- **MoltenVK**: KSA uses descriptor sets 0–9. MoltenVK's limit comes from SPIRV-Cross
-  `kMaxArgumentBuffers` = 8 → `cannot reserve 'buffer' resource location` → crash. SPIRV-Cross
-  `76301541` (2026-09-01) raised it to 16; MoltenVK `main` pins it since `b0753ebc` (2026-09-27),
-  but no release yet (≤ 1.4.2), so we build that commit. Drop the patch once the wrapper ships a
-  MoltenVK release that includes it.
-- **TextureSet.glsl**: shadow macros sample `globalTextures[]` / `globalTextureArrays[]`, so
-  SPIRV-Cross declares them `depth2d` (1 channel). Fix adds `globalShadows[]` / `globalShadowsArray[]`
-  at the same set/binding. All shadow sampling goes through those macros. Remove once KSA fixes it.
-- **App icon**: the wrapper's icon is `Resources/Configure.icns` (Info.plist `CFBundleIconFile`);
-  `0003` replaces it with the bottom square of KSA's title card. `sips --cropOffset` silently skips
-  the crop if an offset is 0, and `-z` runs before `-c` in the same call.
+Each patch file states its own why and removal condition. Facts the patch files don't carry:
+
+- **0001 MoltenVK**: KSA uses descriptor sets 0–9; released MoltenVK (≤ 1.4.2) allows 8
+  (SPIRV-Cross `kMaxArgumentBuffers`), `main` allows 16. The `.replace` builds `main`.
+- **0002 TextureSet.glsl** (removed 2026-10-15): gave shadow lookups their own `globalShadows[]`
+  arrays so SPIRV-Cross would not declare `globalTextures[]` as `depth2d`. Not needed with the
+  `main` MoltenVK build: KSA 2026.10.13.5602 renders correctly without it.
+- **0003 App icon**: the wrapper's icon is `Resources/Configure.icns` (Info.plist
+  `CFBundleIconFile`). `sips --cropOffset` silently skips the crop if an offset is 0, and `-z` runs
+  before `-c` in the same call.
+- **0004 KosmicKrisp manifest**: Wine 11 wrappers ship
+  `Resources/vulkan/icd.d/{MoltenVK,kosmickrisp_mesa}_icd.json`; the launcher binary sets
+  `VK_DRIVER_FILES` to the KosmicKrisp one. Environment variables set by the mod or a StartupScript
+  do not reach the loader, so the manifest itself is patched.
 
 ## Runtime facts
 
 - `[StarMapBeforeMain]` runs before KSA's `Main`: Vulkan not loaded, shaders compiled later
-  (shaderc at startup), so both patches work in the same launch.
+  (shaderc at startup), so wrapper and shader patches work in the same launch.
 - StarMap attributes are declared locally in `namespace StarMap.API` (matched by name).
 - Wrapper = `WINEPREFIX` cut at `.app/Contents`; no `WINEPREFIX` → do nothing. Mac paths via `Z:`.
-- Wine 10 and WineCX load `Frameworks/libMoltenVK.dylib` directly. **Wine 11 is not supported**:
-  on macOS 26 it uses KosmicKrisp instead, where KSA crashes (and the mouse misbehaves).
+- Wine 10 and WineCX load `Frameworks/libMoltenVK.dylib` directly. Wine 11 goes through the
+  Vulkan loader (`Frameworks/libvulkan.1.dylib`) and the manifest the launcher selects (see `0004`).
+  KSA crashes on KosmicKrisp.
 - Replaced dylib loses its executable bit; dlopen doesn't care.
 
 ## Status
 
-- Verified in-game 2026-09-28 from a fresh install with the CI zip: KSA 2026.9.22.5482, Apple M5,
-  WS12WineSikarugir10.0_6 (recommended engine).
+- Verified in-game 2026-10-15 from a fresh wrapper with a local build: KSA 2026.10.13.5602, Apple M5,
+  WS12WineSikarugir11.0_1, macOS 26.5.1. Earlier: 2026-09-28, KSA 2026.9.22.5482, WS12WineSikarugir10.0_6.
 
 ## Running StarMap in the wrapper
 
 - Needs .NET 10 **win-x64** runtime in the prefix; `StarMapConfig.json` `GameLocation` =
   `C:\\Program Files\\Kitten Space Agency`.
-- Launch: `"<wrapper>.app/Contents/MacOS/Sikarugir" "<wrapper>.app/Contents/SharedSupport/prefix/drive_c/Program Files/StarMap/StarMap.exe"`
-  (the `Sikarugir run <file>` form does not work).
+- Launch: `"<wrapper>.app/Contents/MacOS/Sikarugir" "<wrapper>.app/Contents/SharedSupport/prefix/drive_c/Program Files/StarMap/StarMap.exe"`.
 - Borea instance: set `STARMAP_INSTANCE_PATH` to its Windows path (`Z:\Users\…\Instances\<id>`).
 - Debug: `MVK_CONFIG_DEBUG=1`, then grep `LastRunWine.log` for `MoltenVK version`, `[mvk-error]`,
   ` error: `, `cannot reserve`.
 
-## Rejected (don't redo)
-
-- Private-API MoltenVK build: only removes primitive-restart warnings.
-- Ray-tracing MoltenVK fork: GPU page fault when changing anti-aliasing.
-- `MVK_CONFIG_*` / `MTL_*` env vars, `settings.toml` tweaks: not needed.
 ## Style
 
 - Simple, non-intrusive, small readable code over features.
-- Only touch `Frameworks/libMoltenVK.dylib` and files named in `patches/`.
+- Only touch files named in `patches/`.
 - Each step: a short why comment, what it changes, an "already done" check.
 - README stays generic (intent, install, build, permanence warning, licenses): no per-patch details,
   so it stays correct when patches change. Patch files and the workflow document those.

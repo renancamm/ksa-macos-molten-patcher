@@ -2,18 +2,40 @@
 
 <img src="icon.png" alt="MacOSMoltenPatcher icon" width="128">
 
-A Kitten Space Agency mod that lets the Windows version of the game run on macOS in a [Sikarugir Wine wrapper](https://github.com/Sikarugir-App/Sikarugir). A StarMap hook runs it before the game starts; it applies the
-patches in its `patches/` folder to the wrapper and the game files.
+A Kitten Space Agency mod that lets the Windows version of the game run on macOS in a [Sikarugir Wine wrapper](https://github.com/Sikarugir-App/Sikarugir), by patching the wrapper and the game files.
 
-Each patch is a plain text file that says what it changes and why.
+**Tested with `KSA 2026.10.13.5602` on engine `WS12WineSikarugir11.0_1`.**
 
+## How it works
 
-**Tested with `KSA 2026.9.22.5482`.**
+Before the game starts, a StarMap hook applies each file in the mod's `patches/` folder, in name
+order. It only runs inside a Sikarugir wrapper; elsewhere it does nothing.
+
+Each patch is a plain text file: a title, an explanation of why it exists and when it can be
+removed, a `---` line, then the change itself. There are two kinds:
+
+- `.patch`: a diff of one text file, as `git diff` prints it. Lines are matched by their text,
+  not by line numbers, so a patch survives small changes to the file around it.
+- `.replace`: a whole file, for binaries. It names the target and lists the shell commands that
+  build the new file (`build.sh` runs them); the built file ships in `files/`.
+
+The target is a path inside the game folder, or inside the wrapper's `Contents` folder when it
+starts with `wrapper:`. Patches cannot reach anywhere else.
+
+Each launch, for every patch:
+
+- Already applied → nothing to do.
+- Target differs from what the patch expects (for example after a game update) → skipped, the
+  file is left untouched.
+- Otherwise → the original is saved as `<file>.orig` and the change is written.
+
+A patch that fails is logged and skipped; the game always starts. Patches never create files, only
+change existing ones. See [Uninstall](#uninstall) for putting the originals back.
 
 
 ## Install
 
-Requires [StarMap](https://github.com/StarMapLoader/StarMap). The wrapper's engine must be Wine 10 (tested on WS12WineSikarugir10.0_6); Wine 11 is not supported.
+Requires [StarMap](https://github.com/StarMapLoader/StarMap). Recommended wrapper engine: `WS12WineSikarugir11.0_1`.
 
 **[Install via Borea](https://ksamodding.github.io/Borea/mod/MacOSMoltenPatcher/)**
 
