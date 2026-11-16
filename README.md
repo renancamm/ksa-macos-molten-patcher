@@ -2,6 +2,9 @@
 
 <img src="icon.png" alt="MacOSMoltenPatcher icon" width="128">
 
+> [!WARNING]
+> **This project is deprecated.** The recommended way to run KSA on a Mac is now the [KSA Mac Port](https://github.com/renancamm/ksa-macos-port).
+
 A Kitten Space Agency mod that lets the Windows version of the game run on macOS in a [Sikarugir Wine wrapper](https://github.com/Sikarugir-App/Sikarugir), by patching the wrapper and the game files.
 
 **Tested with `KSA 2026.10.13.5602` on engine `WS12WineSikarugir11.0_1`.**
